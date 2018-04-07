@@ -126,7 +126,9 @@ static int (*syscalls[])(void) = {
 };
 
 // put data structure for printing out system call invocation information here
-static char* syscallnames[] = {
+#ifdef CS333_DPRINT_SYSCALLS
+static char*
+syscallnames[] = {
 "",
 "fork",
 "exit",
@@ -151,6 +153,7 @@ static char* syscallnames[] = {
 "close",
 "halt",
 };
+#endif
 
 void
 syscall(void)
@@ -161,7 +164,9 @@ syscall(void)
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     proc->tf->eax = syscalls[num]();
 // some code goes here
+#ifdef CS333_DPRINT_SYSCALLS
     cprintf("%s -> %d\n",syscallnames[num],proc->tf->eax);
+#endif
   } else {
     cprintf("%d %s: unknown sys call %d\n",
             proc->pid, proc->name, num);
