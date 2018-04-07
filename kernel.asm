@@ -11348,7 +11348,7 @@ syscall(void)
 801056a8:	ff d0                	call   *%eax
 801056aa:	89 43 1c             	mov    %eax,0x1c(%ebx)
 801056ad:	eb 34                	jmp    801056e3 <syscall+0x80>
-#ifdef CS333_DPRINT_SYSCALLS
+#ifdef PRINT_SYSCALLS
     cprintf("%s -> %d\n",syscallnames[num],proc->tf->eax);
 #endif
   } else {
@@ -11358,7 +11358,7 @@ syscall(void)
 801056b5:	8d 50 6c             	lea    0x6c(%eax),%edx
 801056b8:	65 a1 04 00 00 00    	mov    %gs:0x4,%eax
 // some code goes here
-#ifdef CS333_DPRINT_SYSCALLS
+#ifdef PRINT_SYSCALLS
     cprintf("%s -> %d\n",syscallnames[num],proc->tf->eax);
 #endif
   } else {
