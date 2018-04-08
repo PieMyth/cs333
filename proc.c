@@ -504,6 +504,7 @@ void
 procdump(void)
 {
   int i;
+  uint current_ticks;
   struct proc *p;
   char *state;
   uint pc[10];
@@ -516,7 +517,8 @@ procdump(void)
       state = states[p->state];
     else
       state = "???";
-    cprintf("%d\t%s\t%s\t%d.%d\t", p->pid, state, p->name, ((ticks-p->start_ticks)/1000), ((ticks-p->start_ticks)%1000));
+    current_ticks = ticks;
+    cprintf("%d\t%s\t%s\t%d.%d\t", p->pid, state, p->name, ((current_ticks-p->start_ticks)/1000), ((current_ticks-p->start_ticks)%1000));
     if(p->state == SLEEPING){
       getcallerpcs((uint*)p->context->ebp+2, pc);
       for(i=0; i<10 && pc[i] != 0; i++)
