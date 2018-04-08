@@ -24,8 +24,7 @@ main(int argc, char *argv[])
   struct rtcdate r;
 
   if (date(&r)) {
-    printf(2,"Error: date call failed. %s at line %d\n",
-	__FILE__, __LINE__);
+    printf(2,"Error: date call failed. %s at line %d\n", __FILE__ , __LINE__);
     exit();
   }
 
