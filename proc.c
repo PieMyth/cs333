@@ -55,6 +55,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->start_ticks = ticks;
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -507,6 +508,7 @@ procdump(void)
   char *state;
   uint pc[10];
 
+  cprintf("\nPID\tState\tName\tElapsed\t PCs\n");
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
       continue;
@@ -514,7 +516,7 @@ procdump(void)
       state = states[p->state];
     else
       state = "???";
-    cprintf("%d %s %s", p->pid, state, p->name);
+    cprintf("%d\t%s\t%s\t%d.%d\t", p->pid, state, p->name, ((ticks-p->start_ticks)/1000), ((ticks-p->start_ticks)%1000));
     if(p->state == SLEEPING){
       getcallerpcs((uint*)p->context->ebp+2, pc);
       for(i=0; i<10 && pc[i] != 0; i++)
