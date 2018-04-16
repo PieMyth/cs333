@@ -518,7 +518,13 @@ procdump(void)
     else
       state = "???";
     current_ticks = ticks;
-    cprintf("%d\t%s\t%s\t%d.%d\t", p->pid, state, p->name, ((current_ticks-p->start_ticks)/1000), ((current_ticks-p->start_ticks)%1000));
+    i = ((current_ticks-p->start_ticks)%1000);
+    cprintf("%d\t%s\t%s\t%d.", p->pid, state, p->name, ((current_ticks-p->start_ticks)/1000));
+    if (i<100)
+      cprintf("0");
+    if (i<10)
+      cprintf("0");
+    cprintf("%d\t",i);
     if(p->state == SLEEPING){
       getcallerpcs((uint*)p->context->ebp+2, pc);
       for(i=0; i<10 && pc[i] != 0; i++)
