@@ -103,3 +103,47 @@ sys_date(void)
   cmostime(d);
   return 0;
 }
+
+uint
+sys_getuid(void)
+{
+  return proc->uid;
+}
+
+uint
+sys_getgid(void)
+{
+  return proc->gid;
+}
+
+uint
+sys_getppid(void)
+{
+  if(proc->pid == 1)
+    return proc->pid;
+  return proc->parent->pid;
+}
+
+int
+sys_setuid(uint _uid)
+{
+  argint(0, (int*)&_uid);
+  if (_uid>= 0 && _uid<= 32767)
+  {
+    proc->uid = _uid;
+    return 0;
+  }
+  return -1;
+}
+
+int
+sys_setgid(uint _uid)
+{
+  argint(0, (int*)&_uid);
+  if (_uid>= 0 && _uid<= 32767)
+  {
+    proc->gid = _uid;
+    return 0;
+  }
+  return -1;
+}

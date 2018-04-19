@@ -56,6 +56,10 @@ found:
   p->state = EMBRYO;
   p->pid = nextpid++;
   p->start_ticks = ticks;
+  p->uid = 0;
+  p->gid = 0;
+  p->cpu_ticks_in = 0;
+  p->cpu_ticks_total = 0;
   release(&ptable.lock);
 
   // Allocate kernel stack.
@@ -171,6 +175,10 @@ fork(void)
   acquire(&ptable.lock);
   np->state = RUNNABLE;
   release(&ptable.lock);
+
+//ADDED THIS FOR WHEN WRITING REPORT
+  np->uid = proc->uid;
+  np->gid = proc->gid;
 
   return pid;
 }
@@ -314,8 +322,14 @@ scheduler(void)
       proc = p;
       switchuvm(p);
       p->state = RUNNING;
+
+      proc->cpu_ticks_in = ticks;
+
       swtch(&cpu->scheduler, proc->context);
       switchkvm();
+
+      proc->cpu_ticks_total = proc->cpu_ticks_total + (ticks - proc->cpu_ticks_in);
+
 
       // Process is done running for now.
       // It should have changed its p->state before coming back.
@@ -508,8 +522,13 @@ procdump(void)
   struct proc *p;
   char *state;
   uint pc[10];
-
+#if defined CS333_P2
+  cprintf("\nPID\tName\tUID\tGID\tPPID\tElapsed\tCPU\tState\tSize\t PCs\n");
+#elif defined CS333_P1
   cprintf("\nPID\tState\tName\tElapsed\t PCs\n");
+#else
+  cprintf("\nPID\tState\tName\t PCs\n");
+#endif
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->state == UNUSED)
       continue;
@@ -519,12 +538,37 @@ procdump(void)
       state = "???";
     current_ticks = ticks;
     i = ((current_ticks-p->start_ticks)%1000);
+#if defined CS333_P2
+    cprintf("%d\t%s\t%d\t%d", p->pid, p->name, p->uid, p->gid);
+    if(p->pid == 1)
+      cprintf("\t%d",p->pid);
+    else
+      cprintf("\t%d",p->parent->pid);
+    cprintf("\t%d.", ((current_ticks-p->start_ticks)/1000));
+    if (i<100)
+      cprintf("0");
+    if (i<10)
+      cprintf("0");
+    cprintf("%d", i);
+    i = p->cpu_ticks_total;
+    cprintf("\t%d.", i/1000);
+    i = i%1000;
+    if (i<100)
+      cprintf("0");
+    if (i<10)
+      cprintf("0");
+    cprintf("%d\t%s\t%d\t", i, state, p->sz);
+#elif defined CS333_P1
     cprintf("%d\t%s\t%s\t%d.", p->pid, state, p->name, ((current_ticks-p->start_ticks)/1000));
     if (i<100)
       cprintf("0");
     if (i<10)
       cprintf("0");
     cprintf("%d\t",i);
+#else
+    cprintf("%d\t%s\t%s", p->pid, state, p->name);
+#endif
+    i = 0;
     if(p->state == SLEEPING){
       getcallerpcs((uint*)p->context->ebp+2, pc);
       for(i=0; i<10 && pc[i] != 0; i++)

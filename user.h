@@ -25,6 +25,11 @@ int sleep(int);
 int uptime(void);
 int halt(void);
 int date(struct rtcdate*);
+uint getuid(void);
+uint getgid(void);
+uint getppid(void);
+int setuid(uint);
+int setgid(uint);
 
 // ulib.c
 int stat(char*, struct stat*);
