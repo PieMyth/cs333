@@ -6,6 +6,7 @@
 #include "x86.h"
 #include "proc.h"
 #include "spinlock.h"
+#include "uproc.h"
 
 struct {
   struct spinlock lock;
@@ -326,10 +327,9 @@ scheduler(void)
       proc->cpu_ticks_in = ticks;
 
       swtch(&cpu->scheduler, proc->context);
-      switchkvm();
 
       proc->cpu_ticks_total = proc->cpu_ticks_total + (ticks - proc->cpu_ticks_in);
-
+      switchkvm();
 
       // Process is done running for now.
       // It should have changed its p->state before coming back.
@@ -669,3 +669,59 @@ initFreeList(void) {
   }
 }
 #endif
+
+int
+getprocs(int max, struct uproc* proctable)
+{
+  struct proc *p;
+  int i;
+
+  acquire(&ptable.lock);
+
+  for(i=0, p = ptable.proc; p<&ptable.proc[NPROC] && i<max; ++p)
+  {
+    if(p->state != UNUSED)
+    {
+      proctable[i].pid = p->pid;
+      proctable[i].uid = p->uid;
+      proctable[i].gid = p->gid;
+      if(p->parent != 0)
+        proctable[i].ppid = p->parent->pid;
+      else
+        proctable[i].ppid = p->pid;
+
+      proctable[i].elapsed_ticks = ticks-p->start_ticks;
+      proctable[i].CPU_total_ticks = p->cpu_ticks_total;
+
+      switch(p->state)
+      {
+        case UNUSED:
+          break;
+        case EMBRYO:
+          safestrcpy(proctable[i].state, "EMBRYO", sizeof("EMBRYO"));
+          break;
+        case SLEEPING:
+          safestrcpy(proctable[i].state, "SLEEPING", sizeof("SLEEPING"));
+          break;
+        case RUNNABLE:
+          safestrcpy(proctable[i].state, "RUNNABLE", sizeof("RUNNABLE"));
+          break;
+        case RUNNING:
+          safestrcpy(proctable[i].state, "RUNNING", sizeof("RUNNING"));
+          break;
+        case ZOMBIE:
+          safestrcpy(proctable[i].state, "ZOMBIE", sizeof("ZOMBIE"));
+          break;
+      }
+
+      proctable[i].size = p->sz;
+      safestrcpy(proctable[i].name, p->name, sizeof(p->name));
+
+      ++i;
+
+    }
+  }
+
+  release(&ptable.lock);
+  return i;
+}
