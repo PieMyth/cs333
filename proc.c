@@ -114,6 +114,8 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+  p->uid = 0;
+  p->gid = 0;
 }
 
 // Grow current process's memory by n bytes.
@@ -177,7 +179,6 @@ fork(void)
   np->state = RUNNABLE;
   release(&ptable.lock);
 
-//ADDED THIS FOR WHEN WRITING REPORT
   np->uid = proc->uid;
   np->gid = proc->gid;
 
@@ -670,17 +671,23 @@ initFreeList(void) {
 }
 #endif
 
+//Get all current processes within the system.
 int
 getprocs(int max, struct uproc* proctable)
 {
   struct proc *p;
   int i;
 
+  //LOCK PTABLE
   acquire(&ptable.lock);
 
-  for(i=0, p = ptable.proc; p<&ptable.proc[NPROC] && i<max; ++p)
+  //ptable gets incremented within forloop, i get incremented at the end
+  //of the forloop.
+  for(i=0, p = ptable.proc; p < &ptable.proc[NPROC] && i<max; p++)
   {
-    if(p->state != UNUSED)
+    //copy all the info into one element of the array
+    //skip if the process is in the unused state
+    if(p->state != UNUSED && p->state != EMBRYO)
     {
       proctable[i].pid = p->pid;
       proctable[i].uid = p->uid;
@@ -690,38 +697,21 @@ getprocs(int max, struct uproc* proctable)
       else
         proctable[i].ppid = p->pid;
 
+      //Get the current ticks for elapsed ticks.
       proctable[i].elapsed_ticks = ticks-p->start_ticks;
       proctable[i].CPU_total_ticks = p->cpu_ticks_total;
-
-      switch(p->state)
-      {
-        case UNUSED:
-          break;
-        case EMBRYO:
-          safestrcpy(proctable[i].state, "EMBRYO", sizeof("EMBRYO"));
-          break;
-        case SLEEPING:
-          safestrcpy(proctable[i].state, "SLEEPING", sizeof("SLEEPING"));
-          break;
-        case RUNNABLE:
-          safestrcpy(proctable[i].state, "RUNNABLE", sizeof("RUNNABLE"));
-          break;
-        case RUNNING:
-          safestrcpy(proctable[i].state, "RUNNING", sizeof("RUNNING"));
-          break;
-        case ZOMBIE:
-          safestrcpy(proctable[i].state, "ZOMBIE", sizeof("ZOMBIE"));
-          break;
-      }
-
+      safestrcpy(proctable[i].state, states[p->state], sizeof(proctable[i].state));
       proctable[i].size = p->sz;
       safestrcpy(proctable[i].name, p->name, sizeof(p->name));
 
+      //Increment the array that is having info copied into
       ++i;
 
     }
   }
 
+  //UNLOCK PTABLE
   release(&ptable.lock);
+
   return i;
 }
