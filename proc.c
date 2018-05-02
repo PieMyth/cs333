@@ -8,9 +8,25 @@
 #include "spinlock.h"
 #include "uproc.h"
 
+struct StateLists {
+  struct proc* ready;
+  struct proc* readyTail;
+  struct proc* free;
+  struct proc* freeTail;
+  struct proc* sleep;
+  struct proc* sleepTail;
+  struct proc* zombie;
+  struct proc* zombieTail;
+  struct proc* running;
+  struct proc* runningTail;
+  struct proc* embryo;
+  struct proc* embryoTail;
+};
+
 struct {
   struct spinlock lock;
   struct proc proc[NPROC];
+  struct StateLists pLists;
 } ptable;
 
 static struct proc *initproc;
@@ -47,14 +63,23 @@ allocproc(void)
   char *sp;
 
   acquire(&ptable.lock);
+#ifndef CS333_P3P4
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == UNUSED)
       goto found;
+#else
+  p = ptable.pLists.free;
+  stateListRemove(&ptable.pLists.free, &ptable.pLists.freeTail, p);
+  goto found;
+#endif
   release(&ptable.lock);
   return 0;
 
 found:
   p->state = EMBRYO;
+#ifdef CS333_P3P4
+  stateListAdd(&ptable.pLists.embryo, &ptable.pLists.embryoTail,p);
+#endif
   p->pid = nextpid++;
   p->start_ticks = ticks;
   p->uid = 0;
@@ -95,7 +120,14 @@ userinit(void)
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
 
+#ifdef CS333_P3P4
+  acquire(&ptable.lock);
+  initProcessLists();
+  initFreeList();
+  release(&ptable.lock);
+#endif
   p = allocproc();
+
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
     panic("userinit: out of memory?");
@@ -114,6 +146,9 @@ userinit(void)
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+#ifdef CS333_P3P4
+
+#endif
   p->uid = 0;
   p->gid = 0;
 }
@@ -234,6 +269,43 @@ exit(void)
 void
 exit(void)
 {
+  struct proc *p;
+  int fd;
+
+  if(proc == initproc)
+    panic("init exiting");
+
+  // Close all open files.
+  for(fd = 0; fd < NOFILE; fd++){
+    if(proc->ofile[fd]){
+      fileclose(proc->ofile[fd]);
+      proc->ofile[fd] = 0;
+    }
+  }
+
+  begin_op();
+  iput(proc->cwd);
+  end_op();
+  proc->cwd = 0;
+
+  acquire(&ptable.lock);
+
+  // Parent might be sleeping in wait().
+  wakeup1(proc->parent);
+
+  // Pass abandoned children to init.
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->parent == proc){
+      p->parent = initproc;
+      if(p->state == ZOMBIE)
+        wakeup1(initproc);
+    }
+  }
+
+  // Jump into the scheduler, never to return.
+  proc->state = ZOMBIE;
+  sched();
+  panic("zombie exit");
 
 }
 #endif
@@ -285,8 +357,43 @@ wait(void)
 int
 wait(void)
 {
+  struct proc *p;
+  int havekids, pid;
 
-  return 0;  // placeholder
+  acquire(&ptable.lock);
+  for(;;){
+    // Scan through table looking for zombie children.
+    havekids = 0;
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->parent != proc)
+        continue;
+      havekids = 1;
+      if(p->state == ZOMBIE){
+        // Found one.
+        pid = p->pid;
+        kfree(p->kstack);
+        p->kstack = 0;
+        freevm(p->pgdir);
+        p->state = UNUSED;
+        p->pid = 0;
+        p->parent = 0;
+        p->name[0] = 0;
+        p->killed = 0;
+        release(&ptable.lock);
+        return pid;
+      }
+    }
+
+    // No point waiting if we don't have any children.
+    if(!havekids || proc->killed){
+      release(&ptable.lock);
+      return -1;
+    }
+
+    // Wait for children to exit.  (See wakeup1 call in proc_exit.)
+    sleep(proc, &ptable.lock);  //DOC: wait-sleep
+  }
+
 }
 #endif
 
@@ -349,7 +456,46 @@ scheduler(void)
 void
 scheduler(void)
 {
+  struct proc *p;
+  int idle;  // for checking if processor is idle
 
+  for(;;){
+    // Enable interrupts on this processor.
+    sti();
+
+    idle = 1;  // assume idle unless we schedule a process
+    // Loop over process table looking for process to run.
+    acquire(&ptable.lock);
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->state != RUNNABLE)
+        continue;
+
+      // Switch to chosen process.  It is the process's job
+      // to release ptable.lock and then reacquire it
+      // before jumping back to us.
+      idle = 0;  // not idle this timeslice
+      proc = p;
+      switchuvm(p);
+      p->state = RUNNING;
+
+      proc->cpu_ticks_in = ticks;
+
+      swtch(&cpu->scheduler, proc->context);
+
+      proc->cpu_ticks_total = proc->cpu_ticks_total + (ticks - proc->cpu_ticks_in);
+      switchkvm();
+
+      // Process is done running for now.
+      // It should have changed its p->state before coming back.
+      proc = 0;
+    }
+    release(&ptable.lock);
+    // if idle, wait for next interrupt
+    if (idle) {
+      sti();
+      hlt();
+    }
+  }
 }
 #endif
 
@@ -457,7 +603,11 @@ wakeup1(void *chan)
 static void
 wakeup1(void *chan)
 {
+  struct proc *p;
 
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
+    if(p->state == SLEEPING && p->chan == chan)
+      p->state = RUNNABLE;
 }
 #endif
 
@@ -497,8 +647,22 @@ kill(int pid)
 int
 kill(int pid)
 {
+  struct proc *p;
 
-  return 0;  // placeholder
+  acquire(&ptable.lock);
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->pid == pid){
+      p->killed = 1;
+      // Wake process from sleep if necessary.
+      if(p->state == SLEEPING)
+        p->state = RUNNABLE;
+      release(&ptable.lock);
+      return 0;
+    }
+  }
+  release(&ptable.lock);
+  return -1;
+
 }
 #endif
 
