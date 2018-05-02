@@ -120,6 +120,10 @@ int             wait(void);
 void            wakeup(void*);
 void            yield(void);
 int             getprocs(int, struct uproc *);
+void            piddump(void);
+void            freedump(void);
+void            sleepdump(void);
+void            zombiedump(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);

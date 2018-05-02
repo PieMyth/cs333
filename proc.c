@@ -91,6 +91,10 @@ found:
   // Allocate kernel stack.
   if((p->kstack = kalloc()) == 0){
     p->state = UNUSED;
+#ifdef CS333_P3P4
+    stateListRemove(&ptable.pLists.embryo, &ptable.pLists.embryoTail,p);
+    stateListAdd(&ptable.pLists.free, &ptable.pLists.freeTail,p);
+#endif
     return 0;
   }
   sp = p->kstack + KSTACKSIZE;
@@ -147,7 +151,10 @@ userinit(void)
 
   p->state = RUNNABLE;
 #ifdef CS333_P3P4
-
+  acquire(&ptable.lock);
+  stateListRemove(&ptable.pLists.embryo, &ptable.pLists.embryoTail, p);
+  stateListAdd(&ptable.pLists.ready, &ptable.pLists.readyTail, p);
+  release(&ptable.lock);
 #endif
   p->uid = 0;
   p->gid = 0;
@@ -191,6 +198,12 @@ fork(void)
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
+#ifdef CS333_P3P4
+    acquire(&ptable.lock);
+    stateListRemove(&ptable.pLists.embryo, &ptable.pLists.embryoTail, np);
+    stateListAdd(&ptable.pLists.free, &ptable.pLists.freeTail, np);
+    release(&ptable.lock);
+#endif
     return -1;
   }
   np->sz = proc->sz;
@@ -212,6 +225,10 @@ fork(void)
   // lock to force the compiler to emit the np->state write last.
   acquire(&ptable.lock);
   np->state = RUNNABLE;
+#ifdef CS333_P3P4
+  stateListRemove(&ptable.pLists.embryo, &ptable.pLists.embryoTail, np);
+  stateListAdd(&ptable.pLists.ready, &ptable.pLists.readyTail, np);
+#endif
   release(&ptable.lock);
 
   np->uid = proc->uid;
@@ -304,6 +321,8 @@ exit(void)
 
   // Jump into the scheduler, never to return.
   proc->state = ZOMBIE;
+  stateListRemove(&ptable.pLists.running, &ptable.pLists.runningTail, proc);
+  stateListAdd(&ptable.pLists.zombie, &ptable.pLists.zombieTail, proc);
   sched();
   panic("zombie exit");
 
@@ -323,6 +342,7 @@ wait(void)
   for(;;){
     // Scan through table looking for zombie children.
     havekids = 0;
+    p = ptable.pLists.zombie;
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
       if(p->parent != proc)
         continue;
@@ -361,6 +381,7 @@ wait(void)
   int havekids, pid;
 
   acquire(&ptable.lock);
+  //TODO Implement this
   for(;;){
     // Scan through table looking for zombie children.
     havekids = 0;
@@ -379,6 +400,8 @@ wait(void)
         p->parent = 0;
         p->name[0] = 0;
         p->killed = 0;
+        stateListRemove(&ptable.pLists.zombie, &ptable.pLists.zombieTail, p);
+        stateListAdd(&ptable.pLists.free, &ptable.pLists.freeTail, p);
         release(&ptable.lock);
         return pid;
       }
@@ -477,6 +500,8 @@ scheduler(void)
       proc = p;
       switchuvm(p);
       p->state = RUNNING;
+      stateListRemove(&ptable.pLists.ready, &ptable.pLists.readyTail, p);
+      stateListAdd(&ptable.pLists.running, &ptable.pLists.runningTail, p);
 
       proc->cpu_ticks_in = ticks;
 
@@ -525,6 +550,10 @@ yield(void)
 {
   acquire(&ptable.lock);  //DOC: yieldlock
   proc->state = RUNNABLE;
+#ifdef CS333_P3P4
+  stateListRemove(&ptable.pLists.running, &ptable.pLists.runningTail, proc);
+  stateListAdd(&ptable.pLists.ready, &ptable.pLists.readyTail, proc);
+#endif
   sched();
   release(&ptable.lock);
 }
@@ -574,6 +603,10 @@ sleep(void *chan, struct spinlock *lk)
   // Go to sleep.
   proc->chan = chan;
   proc->state = SLEEPING;
+#ifdef CS333_P3P4
+  stateListRemove(&ptable.pLists.running, &ptable.pLists.runningTail, proc);
+  stateListAdd(&ptable.pLists.sleep, &ptable.pLists.sleepTail, proc);
+#endif
   sched();
 
   // Tidy up.
@@ -607,7 +640,11 @@ wakeup1(void *chan)
 
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
     if(p->state == SLEEPING && p->chan == chan)
+    {
       p->state = RUNNABLE;
+      stateListRemove(&ptable.pLists.sleep, &ptable.pLists.sleepTail, p);
+      stateListAdd(&ptable.pLists.ready, &ptable.pLists.readyTail, p);
+    }
 }
 #endif
 
@@ -655,7 +692,11 @@ kill(int pid)
       p->killed = 1;
       // Wake process from sleep if necessary.
       if(p->state == SLEEPING)
+      {
+        stateListRemove(&ptable.pLists.sleep, &ptable.pLists.sleepTail, p);
+        stateListAdd(&ptable.pLists.ready, &ptable.pLists.readyTail, p);
         p->state = RUNNABLE;
+      }
       release(&ptable.lock);
       return 0;
     }
@@ -878,4 +919,76 @@ getprocs(int max, struct uproc* proctable)
   release(&ptable.lock);
 
   return i;
+}
+
+void
+piddump(void)
+{
+  struct proc *p;
+  acquire(&ptable.lock);
+  p = ptable.pLists.ready;
+  cprintf("\nReady List Processes:\n");
+  while(p)
+  {
+    cprintf("%d", p->pid);
+    if(p->next)
+      cprintf(" -> ");
+    p = p->next;
+  }
+  cprintf("\n");
+  release(&ptable.lock);
+}
+
+void
+freedump(void)
+{
+  struct proc *p;
+  int counter = 0;
+  acquire(&ptable.lock);
+  p = ptable.pLists.free;
+  while(p)
+  {
+    p = p->next;
+    ++counter;
+  }
+
+  cprintf("\nFree List Size: %d processes\n", counter);
+
+  release(&ptable.lock);
+}
+
+void
+sleepdump(void)
+{
+  struct proc *p;
+  acquire(&ptable.lock);
+  p = ptable.pLists.sleep;
+  cprintf("\nSleep List Processes:\n");
+  while(p)
+  {
+    cprintf("%d", p->pid);
+    if(p->next)
+      cprintf(" -> ");
+    p = p->next;
+  }
+  cprintf("\n");
+  release(&ptable.lock);
+}
+
+void
+zombiedump(void)
+{
+  struct proc *p;
+  acquire(&ptable.lock);
+  p = ptable.pLists.zombie;
+  cprintf("\nZombie List Processes:\n");
+  while(p)
+  {
+    cprintf("(PID%d, PPID%d)", p->pid, (p->parent? p->parent->pid : p->pid));
+    if(p->next)
+      cprintf(" -> ");
+    p = p->next;
+  }
+  cprintf("\n");
+  release(&ptable.lock);
 }
