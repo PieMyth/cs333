@@ -162,7 +162,7 @@ sys_setgid(uint _uid)
 int
 sys_getprocs(int max, struct uproc* table)
 {
-  if(argint(0,&max)< 0 || argptr(1,(void*)&table,sizeof(*table)) <0)
+  if(argint(0,&max)< 0 || argptr(1,(void*)&table,sizeof(*table)*max) <0)
     return -1;
   return getprocs(max,table);
 }
