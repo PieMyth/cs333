@@ -311,13 +311,26 @@ exit(void)
   wakeup1(proc->parent);
 
   // Pass abandoned children to init.
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    if(p->parent == proc){
-      p->parent = initproc;
-      if(p->state == ZOMBIE)
-        wakeup1(initproc);
+    for(p = ptable.pLists.ready;p;p=p->next)
+    {
+      if(p->parent == proc)
+        p->parent = initproc;
     }
-  }
+    for(p = ptable.pLists.sleep;p;p=p->next)
+    {
+      if(p->parent == proc)
+        p->parent = initproc;
+    }
+    for(p = ptable.pLists.embryo;p;p=p->next)
+    {
+      if(p->parent == proc)
+        p->parent = initproc;
+    }
+    for(p=ptable.pLists.running;p;p=p->next)
+    {
+      if(p->parent == proc)
+        p->parent = initproc;
+    }
 
   // Jump into the scheduler, never to return.
   proc->state = ZOMBIE;
@@ -381,32 +394,65 @@ wait(void)
   int havekids, pid;
 
   acquire(&ptable.lock);
-  //TODO Implement this
   for(;;){
     // Scan through table looking for zombie children.
     havekids = 0;
-    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    for(p = ptable.pLists.zombie; p; p=p->next){
       if(p->parent != proc)
         continue;
+
       havekids = 1;
-      if(p->state == ZOMBIE){
-        // Found one.
-        pid = p->pid;
-        kfree(p->kstack);
-        p->kstack = 0;
-        freevm(p->pgdir);
-        p->state = UNUSED;
-        p->pid = 0;
-        p->parent = 0;
-        p->name[0] = 0;
-        p->killed = 0;
-        stateListRemove(&ptable.pLists.zombie, &ptable.pLists.zombieTail, p);
-        stateListAdd(&ptable.pLists.free, &ptable.pLists.freeTail, p);
-        release(&ptable.lock);
-        return pid;
+      // Found one.
+      pid = p->pid;
+      kfree(p->kstack);
+      p->kstack = 0;
+      freevm(p->pgdir);
+      p->state = UNUSED;
+      stateListRemove(&ptable.pLists.zombie, &ptable.pLists.zombieTail,p);
+      stateListAdd(&ptable.pLists.free, &ptable.pLists.freeTail,p);
+      p->pid = 0;
+      p->parent = 0;
+      p->name[0] = 0;
+      p->killed = 0;
+      release(&ptable.lock);
+      return pid;
+
+    }
+
+    for(p = ptable.pLists.ready;p;p=p->next)
+    {
+      if(p->parent == proc)
+      {
+        havekids = 1;
+        goto kids;
+      }
+    }
+    for(p = ptable.pLists.sleep;p;p=p->next)
+    {
+      if(p->parent == proc)
+      {
+        havekids = 1;
+        goto kids;
+      }
+    }
+    for(p = ptable.pLists.embryo;p;p=p->next)
+    {
+      if(p->parent == proc)
+      {
+        havekids = 1;
+        goto kids;
+      }
+    }
+    for(p=ptable.pLists.running;p;p=p->next)
+    {
+      if(p->parent == proc)
+      {
+        havekids = 1;
+        goto kids;
       }
     }
 
+    kids:
     // No point waiting if we don't have any children.
     if(!havekids || proc->killed){
       release(&ptable.lock);
@@ -416,7 +462,6 @@ wait(void)
     // Wait for children to exit.  (See wakeup1 call in proc_exit.)
     sleep(proc, &ptable.lock);  //DOC: wait-sleep
   }
-
 }
 #endif
 
@@ -638,13 +683,17 @@ wakeup1(void *chan)
 {
   struct proc *p;
 
-  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++)
-    if(p->state == SLEEPING && p->chan == chan)
+  p = ptable.pLists.sleep;
+  while(p)
+  {
+    if(p->chan == chan)
     {
       p->state = RUNNABLE;
       stateListRemove(&ptable.pLists.sleep, &ptable.pLists.sleepTail, p);
       stateListAdd(&ptable.pLists.ready, &ptable.pLists.readyTail, p);
     }
+    p = p->next;
+  }
 }
 #endif
 
@@ -687,6 +736,7 @@ kill(int pid)
   struct proc *p;
 
   acquire(&ptable.lock);
+  //TODO GO THROUGH EACH LIST
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
     if(p->pid == pid){
       p->killed = 1;

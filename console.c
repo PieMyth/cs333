@@ -190,10 +190,12 @@ void
 consoleintr(int (*getc)(void))
 {
   int c, doprocdump = 0;
+#ifdef CS333_P3P4
   int dopids = 0;
   int dofree = 0;
   int dosleep = 0;
   int dozombie = 0;
+#endif
 
   acquire(&cons.lock);
   while((c = getc()) >= 0){
@@ -201,6 +203,7 @@ consoleintr(int (*getc)(void))
     case C('P'):  // Process listing.
       doprocdump = 1;   // procdump() locks cons.lock indirectly; invoke later
       break;
+#ifdef CS333_P3P4
     case C('R'):
       dopids = 1;
       break;
@@ -213,6 +216,7 @@ consoleintr(int (*getc)(void))
     case C('Z'):
       dozombie = 1;
       break;
+#endif
     case C('U'):  // Kill line.
       while(input.e != input.w &&
             input.buf[(input.e-1) % INPUT_BUF] != '\n'){
@@ -243,6 +247,7 @@ consoleintr(int (*getc)(void))
   if(doprocdump) {
     procdump();  // now call procdump() wo. cons.lock held
   }
+#ifdef CS333_P3P4
   if(dopids) {
     piddump();
   }
@@ -255,6 +260,7 @@ consoleintr(int (*getc)(void))
   if(dozombie) {
     zombiedump();
   }
+#endif
 }
 
 int
