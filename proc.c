@@ -245,8 +245,6 @@ fork(void)
   acquire(&ptable.lock);
   np->state = RUNNABLE;
 #ifdef CS333_P3P4
-  np->priority = 0;
-  np->budget = BUDGET;
   if(stateListRemove(&ptable.pLists.embryo, &ptable.pLists.embryoTail, np))
     panic("error removing from embryo.");
   if(stateListAdd(&ptable.pLists.ready[np->priority], &ptable.pLists.readyTail[np->priority], np))
@@ -335,7 +333,7 @@ exit(void)
   wakeup1(proc->parent);
 
   // Pass abandoned children to init.
-  for(int i = 0; i< MAXPRIO; ++i)
+  for(int i = 0; i<MAXPRIO ; ++i)
   {
     for(p = ptable.pLists.ready[i];p;p=p->next)
     {
@@ -452,7 +450,7 @@ wait(void)
 
     }
 
-    for(int i = 0; i < MAXPRIO; ++i)
+    for(int i = 0; i<MAXPRIO ; ++i)
     {
       for(p = ptable.pLists.ready[i];p;p=p->next)
       {
@@ -575,7 +573,7 @@ scheduler(void)
       promoteAll();
       ptable.PromoteAtTime = ticks + TICKS_TO_PROMOTE;
     }
-    for(int i = 0; i < MAXPRIO; ++i)
+    for(int i = 0; i<MAXPRIO; ++i)
     {
       for(p = ptable.pLists.ready[i]; p; p = p->next){
 
@@ -592,11 +590,11 @@ scheduler(void)
           panic("problem with adding to running list.");
         assertState(p, RUNNING);
 
-        proc->cpu_ticks_in = ticks;
+        p->cpu_ticks_in = ticks;
 
         swtch(&cpu->scheduler, proc->context);
 
-        proc->cpu_ticks_total = proc->cpu_ticks_total + (ticks - proc->cpu_ticks_in);
+        p->cpu_ticks_total = p->cpu_ticks_total + (ticks - p->cpu_ticks_in);
         switchkvm();
 
         // Process is done running for now.
@@ -604,12 +602,12 @@ scheduler(void)
         proc = 0;
       }
     }
-      release(&ptable.lock);
-      // if idle, wait for next interrupt
-      if (idle) {
-        sti();
-        hlt();
-      }
+    release(&ptable.lock);
+    // if idle, wait for next interrupt
+    if (idle) {
+      sti();
+      hlt();
+    }
   }
 }
 #endif
@@ -641,13 +639,6 @@ yield(void)
   acquire(&ptable.lock);  //DOC: yieldlock
   proc->state = RUNNABLE;
 #ifdef CS333_P3P4
-  proc->budget = proc->budget - (ticks - proc->cpu_ticks_in);
-  if(proc->budget <= 0)
-  {
-    if(proc->priority < MAXPRIO)
-      proc->priority += 1;
-    proc->budget = BUDGET*(proc->priority+1);
-  }
   stateListRemove(&ptable.pLists.running, &ptable.pLists.runningTail, proc);
   stateListAdd(&ptable.pLists.ready[proc->priority], &ptable.pLists.readyTail[proc->priority], proc);
   assertState(proc, RUNNABLE);
@@ -702,14 +693,6 @@ sleep(void *chan, struct spinlock *lk)
   proc->chan = chan;
   proc->state = SLEEPING;
 #ifdef CS333_P3P4
-  proc->budget = proc->budget - (ticks - proc->cpu_ticks_in);
-  if(proc->budget <= 0)
-  {
-    if(proc->priority < MAXPRIO)
-      proc->priority += 1;
-
-    proc->budget = BUDGET*(proc->priority+1);
-  }
   if(stateListRemove(&ptable.pLists.running, &ptable.pLists.runningTail, proc))
     panic("error removing from running list.");
   if(stateListAdd(&ptable.pLists.sleep, &ptable.pLists.sleepTail, proc))
@@ -803,7 +786,7 @@ kill(int pid)
   struct proc *p;
 
   acquire(&ptable.lock);
-  for(int i = 0; i < MAXPRIO; ++i)
+  for(int i = 0; i<MAXPRIO; ++i)
   {
     for(p = ptable.pLists.ready[i]; p ; p = p->next)
     {
@@ -871,9 +854,7 @@ procdump(void)
   struct proc *p;
   char *state;
   uint pc[10];
-#if defined CS333_P3P4
-  cprintf("\nPID\tName\tUID\tGID\tPPID\tPrio\tElapsed\tCPU\tState\tSize\t PCs\n");
-#elif defined CS333_P2
+#if defined CS333_P2
   cprintf("\nPID\tName\tUID\tGID\tPPID\tElapsed\tCPU\tState\tSize\t PCs\n");
 #elif defined CS333_P1
   cprintf("\nPID\tState\tName\tElapsed\t PCs\n");
@@ -895,9 +876,6 @@ procdump(void)
       cprintf("\t%d",p->pid);
     else
       cprintf("\t%d",p->parent->pid);
-#if defined CS333_P3P4
-      cprintf("\t%d",p->priority);
-#endif
     cprintf("\t%d.", ((current_ticks-p->start_ticks)/1000));
     if (i<100)
       cprintf("0");
@@ -953,26 +931,20 @@ stateListAdd(struct proc** head, struct proc** tail, struct proc* p)
 static int
 stateListRemove(struct proc** head, struct proc** tail, struct proc* p)
 {
-  if(*head == 0 || *tail == 0 || p == 0)
-  {
+  if (*head == 0 || *tail == 0 || p == 0) {
     return -1;
   }
 
   struct proc* current = *head;
   struct proc* previous = 0;
 
-  if(current == p){
+  if (current == p) {
     *head = (*head)->next;
-    // prevent tail remaining assigned when we've removed the only item
-    // on the list
-    if(*tail == p){
-      *tail = 0;
-    }
     return 0;
   }
 
-  while(current){
-    if(current == p){
+  while(current) {
+    if (current == p) {
       break;
     }
 
@@ -981,24 +953,27 @@ stateListRemove(struct proc** head, struct proc** tail, struct proc* p)
   }
 
   // Process not found, hit eject.
-  if(current == 0){
+  if (current == 0) {
     return -1;
   }
+
   // Process found. Set the appropriate next pointer.
-  if(current == *tail){
+  if (current == *tail) {
     *tail = previous;
     (*tail)->next = 0;
-  } else{
+  } else {
     previous->next = current->next;
   }
+
   // Make sure p->next doesn't point into the list.
   p->next = 0;
+
   return 0;
 }
 
 static void
 initProcessLists(void) {
-  for(int i = 0; i < MAXPRIO; ++i)
+  for(int i = 0; i<MAXPRIO; ++i)
   {
     ptable.pLists.ready[i] = 0;
     ptable.pLists.readyTail[i] = 0;
@@ -1062,7 +1037,6 @@ getprocs(int max, struct uproc* proctable)
       safestrcpy(proctable[i].state, states[p->state], sizeof(proctable[i].state));
       proctable[i].size = p->sz;
       safestrcpy(proctable[i].name, p->name, sizeof(p->name));
-      proctable[i].priority = p->priority;
 
       //Increment the array that is having info copied into
       ++i;
@@ -1080,22 +1054,21 @@ void
 piddump(void)
 {
   struct proc *p;
-  cprintf("\nReady List Processes:\n");
   acquire(&ptable.lock);
-  for(int i = 0; i < MAXPRIO; ++i)
+  cprintf("\nReady List Processes:\n");
+  for(int i = 0; i<MAXPRIO; ++i)
   {
-    cprintf("%d: ", i);
     p = ptable.pLists.ready[i];
+    cprintf("%d: ", i);
     while(p)
     {
-      cprintf("(%d, %d)", p->pid, p->budget);
+      cprintf("%d", p->pid);
       if(p->next)
         cprintf(" -> ");
       p = p->next;
     }
     cprintf("\n");
   }
-  cprintf("\n");
   release(&ptable.lock);
 }
 
@@ -1163,82 +1136,12 @@ assertState(struct proc* p, enum procstate state)
 int
 setpriority(int pid, int priority)
 {
-  struct proc * p;
-  int found = 0;
-  if(pid < 0 || priority < 0 || priority > MAXPRIO)
-    return -1;
-  acquire(&ptable.lock);
-  for(int i = 0; !found && i < MAXPRIO; i++)
-  {
-    for(p = ptable.pLists.ready[i];!found && p;p=p->next)
-    {
-      if(p->pid == pid)
-      {
-        p->priority = priority;
-        p->budget = BUDGET*(p->priority+1);
-        if(stateListRemove(&ptable.pLists.ready[i], &ptable.pLists.readyTail[i], p))
-          panic("Error removing process from current prioity");
-        if(stateListAdd(&ptable.pLists.ready[priority], &ptable.pLists.readyTail[priority],p))
-          panic("error adding process to desired priority");
-        found = 1;
-      }
-    }
-  }
-  for(p = ptable.pLists.sleep;!found && p; p=p->next)
-  {
-    if(p->pid == pid)
-    {
-      p->priority = priority;
-      p->budget = BUDGET*(p->priority+1);
-      found = 1;
-    }
-  }
-  for(p = ptable.pLists.running;!found && p; p=p->next)
-  {
-    if(p->pid == pid)
-    {
-      p->priority = priority;
-      p->budget = BUDGET*(p->priority+1);
-      found = 1;
-    }
-  }
-  release(&ptable.lock);
-  if(found)
-    return 0;
-  return -1;
+  return 0;
 }
 
 void
 promoteAll(void)
 {
-  struct proc *p;
-  for(int i = 0; i< MAXPRIO; ++i)
-  {
-    for(p = ptable.pLists.ready[i]; p ; p=p->next)
-    {
-      if(i > 0)
-      {
-        if(stateListRemove(&ptable.pLists.ready[i], &ptable.pLists.readyTail[i], p))
-          panic("Error removing process from current priority");
-        p->priority = i - 1;
-        if(stateListAdd(&ptable.pLists.ready[(i-1)], &ptable.pLists.readyTail[(i-1)], p))
-          panic("Error adding process to desired priority");
-      }
-      p->budget = BUDGET*(p->priority+1);
-    }
-  }
-  for(p = ptable.pLists.sleep; p ; p=p->next)
-  {
-    if(p->priority > 0)
-      p->priority = p->priority - 1;
-
-    p->budget = BUDGET*(p->priority+1);
-  }
-  for(p = ptable.pLists.running; p ; p=p->next)
-  {
-    if(p->priority > 0)
-      p->priority = p->priority - 1;
-
-    p->budget = BUDGET*(p->priority+1);
-  }
+  return;
 }
+
