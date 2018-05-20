@@ -167,7 +167,6 @@ sys_getprocs(int max, struct uproc* table)
   return getprocs(max,table);
 }
 
-#ifdef CS333_P3P4
 int
 sys_setpriority(void)
 {
@@ -179,4 +178,3 @@ sys_setpriority(void)
 
   return setpriority(pid, value);
 }
-#endif
