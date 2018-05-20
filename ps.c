@@ -20,11 +20,12 @@ main(int argc, char * argv[])
   else
   {
     //Header
-    printf(1,"PID\tUID\tGID\tPPID\tElapsed\tCPU\tSate\tSize\tName\n");
+    printf(1,"PID\tUID\tGID\tPPID\tPrio\tElapsed\tCPU\tSate\tSize\tName\n");
     //Print everything that was copied in the array.
     for(int i = 0; i<collected; ++i)
     {
-      printf(1,"%d\t%d\t%d\t%d\t%d.", proctable[i].pid, proctable[i].uid, proctable[i].gid, proctable[i].ppid, proctable[i].elapsed_ticks/1000);
+      printf(1,"%d\t%d\t%d\t%d\t%d\t%d.", proctable[i].pid, proctable[i].uid, proctable[i].gid, proctable[i].ppid, proctable[i].priority,
+                                          proctable[i].elapsed_ticks/1000);
       if(proctable[i].elapsed_ticks%1000 < 100)
         printf(1,"0");
       if(proctable[i].elapsed_ticks%1000 < 10)
