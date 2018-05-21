@@ -72,7 +72,7 @@ struct proc {
   uint cpu_ticks_total;        // Total elapsed ticks in CPU
   uint cpu_ticks_in;           // Ticks when scheduled
   struct proc *next;           // To be used in stateslists
-  uint budget;                 // Budget for priority
+  int budget;                  // Budget for priority
   uint priority;               // Allows to know the priority without having to traverse lists.
 };
 
