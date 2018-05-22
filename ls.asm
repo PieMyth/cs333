@@ -5,8 +5,8 @@ _ls:     file format elf32-i386
 Disassembly of section .text:
 
 00000000 <fmtname>:
-#include "user.h"
-#include "fs.h"
+#include "print_mode.c"
+#endif
 
 char*
 fmtname(char *path)
@@ -17,7 +17,7 @@ fmtname(char *path)
    4:	83 ec 14             	sub    $0x14,%esp
   static char buf[DIRSIZ+1];
   char *p;
-  
+
   // Find first character after last slash.
   for(p=path+strlen(path); p >= path && *p != '/'; p--)
    7:	83 ec 0c             	sub    $0xc,%esp
@@ -40,7 +40,7 @@ fmtname(char *path)
     ;
   p++;
   37:	83 45 f4 01          	addl   $0x1,-0xc(%ebp)
-  
+
   // Return blank-padded name.
   if(strlen(p) >= DIRSIZ)
   3b:	83 ec 0c             	sub    $0xc,%esp
@@ -104,7 +104,7 @@ ls(char *path)
   int fd;
   struct dirent de;
   struct stat st;
-  
+
   if((fd = open(path, 0)) < 0){
   c4:	83 ec 08             	sub    $0x8,%esp
   c7:	6a 00                	push   $0x0
@@ -124,7 +124,7 @@ ls(char *path)
     return;
   f2:	e9 e3 01 00 00       	jmp    2da <ls+0x222>
   }
-  
+
   if(fstat(fd, &st) < 0){
   f7:	83 ec 08             	sub    $0x8,%esp
   fa:	8d 85 bc fd ff ff    	lea    -0x244(%ebp),%eax
@@ -149,7 +149,7 @@ ls(char *path)
     return;
  133:	e9 a2 01 00 00       	jmp    2da <ls+0x222>
   }
-  
+
   switch(st.type){
  138:	0f b7 85 bc fd ff ff 	movzwl -0x244(%ebp),%eax
  13f:	98                   	cwtl   
@@ -178,7 +178,7 @@ ls(char *path)
  185:	83 c4 20             	add    $0x20,%esp
     break;
  188:	e9 3f 01 00 00       	jmp    2cc <ls+0x214>
-  
+
   case T_DIR:
     if(strlen(path) + 1 + DIRSIZ + 1 > sizeof buf){
  18d:	83 ec 0c             	sub    $0xc,%esp
@@ -261,6 +261,9 @@ ls(char *path)
         continue;
  26b:	eb 3e                	jmp    2ab <ls+0x1f3>
       }
+#ifdef CS333_P5NO
+      print_mode(st);
+#endif
       printf(1, "%s %d %d %d\n", fmtname(buf), st.type, st.ino, st.size);
  26d:	8b bd cc fd ff ff    	mov    -0x234(%ebp),%edi
  273:	8b b5 c4 fd ff ff    	mov    -0x23c(%ebp),%esi
@@ -295,9 +298,9 @@ ls(char *path)
  2bf:	83 c4 10             	add    $0x10,%esp
  2c2:	83 f8 10             	cmp    $0x10,%eax
  2c5:	0f 84 36 ff ff ff    	je     201 <ls+0x149>
-        printf(1, "ls: cannot stat %s\n", buf);
-        continue;
-      }
+#ifdef CS333_P5NO
+      print_mode(st);
+#endif
       printf(1, "%s %d %d %d\n", fmtname(buf), st.type, st.ino, st.size);
     }
     break;

@@ -3,17 +3,21 @@
 #include "user.h"
 #include "fs.h"
 
+#ifdef CS333_P5
+#include "print_mode.c"
+#endif
+
 char*
 fmtname(char *path)
 {
   static char buf[DIRSIZ+1];
   char *p;
-  
+
   // Find first character after last slash.
   for(p=path+strlen(path); p >= path && *p != '/'; p--)
     ;
   p++;
-  
+
   // Return blank-padded name.
   if(strlen(p) >= DIRSIZ)
     return p;
@@ -29,23 +33,23 @@ ls(char *path)
   int fd;
   struct dirent de;
   struct stat st;
-  
+
   if((fd = open(path, 0)) < 0){
     printf(2, "ls: cannot open %s\n", path);
     return;
   }
-  
+
   if(fstat(fd, &st) < 0){
     printf(2, "ls: cannot stat %s\n", path);
     close(fd);
     return;
   }
-  
+
   switch(st.type){
   case T_FILE:
     printf(1, "%s %d %d %d\n", fmtname(path), st.type, st.ino, st.size);
     break;
-  
+
   case T_DIR:
     if(strlen(path) + 1 + DIRSIZ + 1 > sizeof buf){
       printf(1, "ls: path too long\n");
@@ -63,6 +67,9 @@ ls(char *path)
         printf(1, "ls: cannot stat %s\n", buf);
         continue;
       }
+#ifdef CS333_P5NO
+      print_mode(st);
+#endif
       printf(1, "%s %d %d %d\n", fmtname(buf), st.type, st.ino, st.size);
     }
     break;
