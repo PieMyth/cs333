@@ -21,7 +21,7 @@
 8010d5c0 panicked
 8010d5e0 cons
 80100317 printint
-8010b004 digits.1631
+8010b004 digits.1650
 80100792 consputc
 8010b000 crt
 80100601 cgaputc
@@ -163,8 +163,8 @@
 801087a3 vector33
 80108c92 vector162
 80105402 yield
-80114280 log
-80114240 kmem
+80114100 log
+801140c0 kmem
 80108ef6 vector213
 80108a46 vector108
 801084d3 uartinit
@@ -179,12 +179,12 @@
 8010122e fileread
 80108ac4 vector122
 80107d3d sys_sbrk
-80114360 ioapicid
+801141e0 ioapicid
 80107f92 sys_setpriority
 80108c4a vector156
 80107e04 sys_halt
 80109076 vector245
-80114234 ioapic
+801140a4 ioapic
 80108dd6 vector189
 801086c7 vector7
 80106203 freedump
@@ -208,7 +208,7 @@
 8010e680 bcache
 80108d0a vector172
 80109046 vector241
-80114364 ismp
+801141e4 ismp
 8010692e getcallerpcs
 80107920 sys_mkdir
 801090d6 vector253
@@ -260,7 +260,7 @@
 8010905e vector243
 8010306a cpunum
 80101013 fileinit
-80117940 gdt
+801177c0 gdt
 80106853 initlock
 80108afa vector128
 80109ea0 copyout
@@ -353,7 +353,7 @@
 8010892f vector77
 80101757 ialloc
 80108d6a vector180
-80117978 kpgdir
+801177f8 kpgdir
 80108eba vector208
 80103266 cmostime
 8010866f uartintr
@@ -362,7 +362,7 @@
 80108d3a vector176
 80108e12 vector194
 8010879a vector32
-8011797c end
+801177fc end
 80108e4e vector199
 80108b1e vector131
 801090ca vector252
@@ -422,7 +422,7 @@
 80108857 vector53
 8010871c vector18
 0000008a _binary_entryother_size
-80114380 cpus
+80114200 cpus
 801089d1 vector95
 801069a8 holding
 80113240 sb
@@ -431,7 +431,7 @@
 801025e2 nameiparent
 80108833 vector49
 80108806 vector44
-8011427c lapic
+801140fc lapic
 80108938 vector78
 8010803a alltraps
 80108d16 vector173
@@ -475,7 +475,7 @@
 80108818 vector46
 80108b42 vector134
 80108f6e vector223
-80117120 idt
+80116fa0 idt
 80108f32 vector218
 801044fa pinit
 80109b8c deallocuvm
@@ -483,13 +483,13 @@
 80105f32 getprocs
 80108dbe vector187
 80104946 growproc
-80114960 ncpu
+801147e0 ncpu
 80108788 vector30
 8010472c userinit
 801001b6 bread
 80108af1 vector127
 801043da piperead
-80117920 ticks
+801177a0 ticks
 80108dfa vector192
 80108cc2 vector166
 80100bb7 consoleinit
@@ -549,7 +549,7 @@
 801099ec loaduvm
 80108a22 vector104
 80108a8e vector116
-80114980 ptable
+80114800 ptable
 80102b78 ioapicenable
 80107f37 sys_getprocs
 80106a17 popcli

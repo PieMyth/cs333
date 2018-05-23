@@ -709,7 +709,7 @@ writetest1(void)
   for(i = 0; i < MAXFILE; i++){
      663:	83 45 f4 01          	addl   $0x1,-0xc(%ebp)
      667:	8b 45 f4             	mov    -0xc(%ebp),%eax
-     66a:	3d 8b 00 00 00       	cmp    $0x8b,%eax
+     66a:	3d 89 00 00 00       	cmp    $0x89,%eax
      66f:	76 ab                	jbe    61c <writetest1+0x5e>
       printf(stdout, "error: write big file failed\n", i);
       exit();
@@ -758,7 +758,7 @@ writetest1(void)
      6d7:	83 7d f4 00          	cmpl   $0x0,-0xc(%ebp)
      6db:	75 27                	jne    704 <writetest1+0x146>
       if(n == MAXFILE - 1){
-     6dd:	81 7d f0 8b 00 00 00 	cmpl   $0x8b,-0x10(%ebp)
+     6dd:	81 7d f0 89 00 00 00 	cmpl   $0x89,-0x10(%ebp)
      6e4:	75 7d                	jne    763 <writetest1+0x1a5>
         printf(stdout, "read only %d blocks from big", n);
      6e6:	a1 f4 63 00 00       	mov    0x63f4,%eax

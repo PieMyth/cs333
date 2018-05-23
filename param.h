@@ -17,3 +17,4 @@
 #define MAXPRIO       6
 #define TICKS_TO_PROMOTE    500
 #define BUDGET       100
+#define MODE          0
