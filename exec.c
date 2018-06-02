@@ -6,6 +6,8 @@
 #include "defs.h"
 #include "x86.h"
 #include "elf.h"
+#include "fs.h"
+#include "file.h"
 
 int
 exec(char *path, char **argv)
@@ -25,6 +27,18 @@ exec(char *path, char **argv)
   }
   ilock(ip);
   pgdir = 0;
+#ifdef CS333_P5
+  if(proc->uid == ip->uid && ip->mode.flags.u_x != 1)
+    goto bad;
+  if(proc->gid == ip->gid && ip->mode.flags.g_x != 1)
+    goto bad;
+  if(ip->mode.flags.o_x != 1)
+    goto bad;
+
+  if(ip->mode.flags.setuid == 1)
+    proc->uid = ip->uid;
+#endif
+
 
   // Check ELF header
   if(readi(ip, (char*)&elf, 0, sizeof(elf)) < sizeof(elf))
@@ -34,7 +48,6 @@ exec(char *path, char **argv)
 
   if((pgdir = setupkvm()) == 0)
     goto bad;
-
   // Load program into memory.
   sz = 0;
   for(i=0, off=elf.phoff; i<elf.phnum; i++, off+=sizeof(ph)){

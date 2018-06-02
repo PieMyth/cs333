@@ -54,7 +54,7 @@ sys_dup(void)
 {
   struct file *f;
   int fd;
-  
+
   if(argfd(0, 0, &f) < 0)
     return -1;
   if((fd=fdalloc(f)) < 0)
@@ -92,7 +92,7 @@ sys_close(void)
 {
   int fd;
   struct file *f;
-  
+
   if(argfd(0, &fd, &f) < 0)
     return -1;
   proc->ofile[fd] = 0;
@@ -105,7 +105,7 @@ sys_fstat(void)
 {
   struct file *f;
   struct stat *st;
-  
+
   if(argfd(0, 0, &f) < 0 || argptr(1, (void*)&st, sizeof(*st)) < 0)
     return -1;
   return filestat(f, st);
@@ -353,7 +353,7 @@ sys_mknod(void)
   char *path;
   int len;
   int major, minor;
-  
+
   begin_op();
   if((len=argstr(0, &path)) < 0 ||
      argint(1, &major) < 0 ||
@@ -440,3 +440,108 @@ sys_pipe(void)
   fd[1] = fd1;
   return 0;
 }
+
+#ifdef CS333_P5
+int
+sys_chmod(void)
+{
+  char *pathname;
+  int mode;
+  struct inode *ip;
+
+  begin_op();
+  if(argstr(0, &pathname)<0 || argint(1, &mode) <0)
+  {
+    end_op();
+    return -1;
+  }
+
+  //Check to make sure max isn't too small or too large.
+  if(mode < 0000 || mode > 1777)
+  {
+    end_op();
+    return -1;
+  }
+
+  //Check if path exists
+  if((ip = namei(pathname)) == 0)
+  {
+    end_op();
+    return -1;
+  }
+  ilock(ip);
+  ip->mode.asInt = mode;
+  iupdate(ip);
+  iunlockput(ip);
+  end_op();
+  return 0;
+}
+
+int
+sys_chown(void)
+{
+  char *pathname;
+  int uid;
+  struct inode *ip;
+
+  begin_op();
+  if(argstr(0, &pathname)<0 || argint(1, &uid) <0)
+  {
+    end_op();
+    return -1;
+  }
+  //Check to make sure its within the bounds of UID 0 <= uid <= 32767
+  if(uid < 0 || uid > 32767)
+  {
+    end_op();
+    return -1;
+  }
+
+  //Check if path exists
+  if((ip= namei(pathname)) == 0)
+  {
+    end_op();
+    return -1;
+  }
+  ilock(ip);
+  ip->uid = uid;
+  iupdate(ip);
+  iunlockput(ip);
+  end_op();
+  return 0;
+}
+
+int
+sys_chgrp(void)
+{
+  char *pathname;
+  int gid;
+  struct inode *ip;
+
+  begin_op();
+  if(argstr(0, &pathname)<0 || argint(1, &gid) <0)
+  {
+    end_op();
+    return -1;
+  }
+  //Check to make sure its within the bounds of GID 0 <= id <= 32767
+  if(gid < 0 || gid > 32767)
+  {
+    end_op();
+    return -1;
+  }
+
+  //Check if path exists
+  if((ip= namei(pathname)) == 0)
+  {
+    end_op();
+    return -1;
+  }
+  ilock(ip);
+  ip->gid = gid;
+  iupdate(ip);
+  iunlockput(ip);
+  end_op();
+  return 0;
+}
+#endif

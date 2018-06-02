@@ -31,17 +31,17 @@ struct superblock {
 #ifdef CS333_P5
 union mode_t {
   struct {
-    uint ox : 1;
-    uint ow : 1;
-    uint or : 1;     //other
-    uint gx : 1;
-    uint gw : 1;
-    uint gr : 1;     //group
-    uint ux : 1;
-    uint uw : 1;
-    uint ur : 1;     //user
+    uint o_x : 1;
+    uint o_w : 1;
+    uint o_r : 1;     //other
+    uint g_x : 1;
+    uint g_w : 1;
+    uint g_r : 1;     //group
+    uint u_x : 1;
+    uint u_w : 1;
+    uint u_r : 1;     //user
     uint setuid : 1;
-    uint : 22;       // pad
+    uint : 22;        // pad
   } flags;
   uint asInt;
 };

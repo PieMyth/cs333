@@ -29,10 +29,13 @@ int date(struct rtcdate*);
 uint getuid(void);
 uint getgid(void);
 uint getppid(void);
-int setuid(uint);
-int setgid(uint);
+int setuid(int);
+int setgid(int);
 int getprocs(uint, struct uproc*);
 int setpriority(uint, int);
+int chmod(char*,int);
+int chown(char*,int);
+int chgrp(char*,int);
 
 // ulib.c
 int stat(char*, struct stat*);

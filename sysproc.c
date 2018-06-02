@@ -105,7 +105,7 @@ sys_date(void)
   return 0;
 }
 
-//Get gid
+//Get uid
 uint
 sys_getuid(void)
 {
@@ -132,8 +132,9 @@ sys_getppid(void)
 //Sets the uid after making sure that the argument
 //is within the bounds 0<=32767
 int
-sys_setuid(uint _uid)
+sys_setuid(void)
 {
+  int _uid;
   argint(0, (int*)&_uid);
   if (_uid>= 0 && _uid<= 32767)
   {
@@ -142,16 +143,16 @@ sys_setuid(uint _uid)
   }
   return -1;
 }
-
 //Sets the gid after making sure that the argument
 //is within the bouds 0<=32767
 int
-sys_setgid(uint _uid)
+sys_setgid(void)
 {
-  argint(0, (int*)&_uid);
-  if (_uid>= 0 && _uid<= 32767)
+  int _gid;
+  argint(0, &_gid);
+  if (_gid>= 0 && _gid<= 32767)
   {
-    proc->gid = _uid;
+    proc->gid = _gid;
     return 0;
   }
   return -1;
